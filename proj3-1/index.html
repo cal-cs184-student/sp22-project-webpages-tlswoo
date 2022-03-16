@@ -1,1 +1,440 @@
-<html><head><meta content="text/html; charset=UTF-8" http-equiv="content-type"><style type="text/css">@import url('https://themes.googleusercontent.com/fonts/css?kit=ODelI1aHBYDBqgeIAH2zlJpCfVcp84aqLawScqpMaD_6HccaI_esRRCiUg1W99dz');ol{margin:0;padding:0}table td,table th{padding:0}.c5{color:#000000;font-weight:400;text-decoration:none;vertical-align:baseline;font-size:16pt;font-family:"Source Sans Pro";font-style:normal}.c6{color:#000000;font-weight:700;text-decoration:none;vertical-align:baseline;font-size:14pt;font-family:"Source Sans Pro";font-style:normal}.c7{color:#000000;font-weight:400;text-decoration:none;vertical-align:baseline;font-size:18pt;font-family:"Source Sans Pro";font-style:normal}.c1{color:#000000;font-weight:400;text-decoration:none;vertical-align:baseline;font-size:12pt;font-family:"Source Sans Pro";font-style:normal}.c0{padding-top:0pt;padding-bottom:0pt;line-height:1.5;orphans:2;widows:2;text-align:center}.c2{padding-top:0pt;padding-bottom:0pt;line-height:1.5;orphans:2;widows:2;text-align:left}.c8{background-color:#ffffff;max-width:468pt;padding:72pt 72pt 72pt 72pt}.c3{text-indent:36pt}.c4{height:12pt}.title{padding-top:0pt;color:#000000;font-weight:700;font-size:26pt;padding-bottom:3pt;font-family:"Source Sans Pro";line-height:1.5;page-break-after:avoid;orphans:2;widows:2;text-align:center}.subtitle{padding-top:0pt;color:#666666;font-size:15pt;padding-bottom:16pt;font-family:"Arial";line-height:1.5;page-break-after:avoid;orphans:2;widows:2;text-align:left}li{color:#000000;font-size:12pt;font-family:"Source Sans Pro"}p{margin:0;color:#000000;font-size:12pt;font-family:"Source Sans Pro"}h1{padding-top:0pt;color:#000000;font-weight:700;font-size:18pt;padding-bottom:0pt;font-family:"Source Sans Pro";line-height:1.5;page-break-after:avoid;orphans:2;widows:2;text-align:left}h2{padding-top:18pt;color:#000000;font-size:16pt;padding-bottom:6pt;font-family:"Source Sans Pro";line-height:1.5;page-break-after:avoid;orphans:2;widows:2;text-align:left}h3{padding-top:16pt;color:#434343;font-size:14pt;padding-bottom:4pt;font-family:"Source Sans Pro";line-height:1.5;page-break-after:avoid;orphans:2;widows:2;text-align:left}h4{padding-top:14pt;color:#666666;font-size:12pt;padding-bottom:4pt;font-family:"Source Sans Pro";line-height:1.5;page-break-after:avoid;orphans:2;widows:2;text-align:left}h5{padding-top:12pt;color:#666666;font-size:11pt;padding-bottom:4pt;font-family:"Source Sans Pro";line-height:1.5;page-break-after:avoid;orphans:2;widows:2;text-align:left}h6{padding-top:12pt;color:#666666;font-size:11pt;padding-bottom:4pt;font-family:"Source Sans Pro";line-height:1.5;page-break-after:avoid;font-style:italic;orphans:2;widows:2;text-align:left}</style></head><body class="c8"><p class="c0"><span class="c7">CS 184 Assignment 3: Pathtracer</span></p><p class="c0"><span class="c5">Brandon Shin</span></p><p class="c0"><span>&lt;github pages link here&gt;</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 416.00px;"><img alt="" src="images/image5.png" style="width: 624.00px; height: 468.00px; margin-left: 0.00px; margin-top: -26.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c0 c4"><span class="c5"></span></p><p class="c0 c4"><span class="c5"></span></p><p class="c0 c4"><span class="c5"></span></p><hr style="page-break-before:always;display:none;"><p class="c2 c4"><span class="c6"></span></p><p class="c2"><span class="c6">Part 1</span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To perform ray tracing, we first need to generate a ray which starts at the camera&rsquo;s location, and is casted out into the scene. I began by calculating the bounding plane representing the camera&rsquo;s field of view in camera space. I then used the normalized input x and y coordinates to linearly interpolate across the plane in camera space, to find the corresponding coordinates. Finally, I plugged these new coordinates into a 3D vector (with the z coordinate set at -1), and rotated/normalized it to get a direction vector in world space. The resulting ray starts at the camera&rsquo;s position pos, and travels along the calculated direction vector. Building off of this, we can perform multiple ray casts per pixel and average their values, similar to the idea of supersampling. I used the provided grid sampling object to obtain a certain number of rays, all of which &ldquo;pass through&rdquo; the pixel at the given coordinates, and average all of their radiances together to get a more accurate result.</span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When a ray is casted into the scene, it travels within the minimum and maximum &ldquo;clipping distances&rdquo; of the camera, until it intersects with an object. Then, shading calculations are performed at that intersection point, and depending on the properties of the surface and the shape of the object we collided with, more ray casts and lighting calculations may also occur. When all is said and done, we will have a composite radiance value that represents what is &ldquo;seen&rdquo; by the camera at that particular coordinate in image space.</span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To handle triangle intersections, I implemented the Moller-Trumbore algorithm from lecture. Using the algorithm, I was able to get the barycentric coordinates of the possible intersection point of the given ray and triangle, and determine whether or not there was a valid intersection. Then, I calculated the t value representing the point of intersection on the ray, and checked whether or not it fell within the acceptable min_t and max_t range of the provided ray. The importance of these values has to do with the clipping distance of the camera, and other intersections; t values that are less than min_t mean that the intersection occurs &ldquo;behind&rdquo; the camera&rsquo;s field of view, and t values greater than max_t are either outside the maximum viewing distance of the camera, or they are intersections that occur behind other already-calculated intersections. When we do find a valid intersection, the value of max_t is updated to the next closest intersection, to aid in future intersection calculations.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img alt="" src="images/image8.png" style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><hr style="page-break-before:always;display:none;"><p class="c2 c4"><span class="c1"></span></p><p class="c2"><span class="c6">Part 2</span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To construct the BVH, I began by constructing a bounding box containing all of the input primitives. Using this bounding box, I created a BVHNode for our BVH tree. If the number of primitives in this node was less than the maximum leaf size, then this function call would result in a leaf node. Otherwise, I decided to split the primitives within this bounding box by the longest axis, determined by their centroids. The splitting point was the average value of all of the objects&rsquo; centroids, which was calculated during the initial bounding box creation step. I used the std::partition function to separate the elements into two groups, then recursively called the construct_bvh function on each group to create two children nodes.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img alt="" src="images/image4.png" style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c2"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Before beginning part 2 of this project, I tried to render the cow.dae and </span><span>maxplanck.dae</span><span>&nbsp;files using the naive bounding box implementation. Even with multiple threads, checking every single geometry in the scene led to significantly long rendering times, so long that I wasn&rsquo;t patient enough to let any of them finish. Instead, I decided to compare rendering times between the naive solution with no BVH tree (and subsequently no slabbed-bounding box intersection), and my optimized solution after completing part 2. Rendering cow.dae with the naive solution on 8 threads took ~7 seconds to complete, while maxplanck.dae took a whopping ~124 seconds. With my optimized solution, cow.dae finished rendering in only ~0.04 seconds, and maxplanck.dae took about the same time, which was ~0.05 seconds to complete. This shows an insane improvement in rendering times between the naive and optimized solutions, since with an optimally-split BVH tree, we are able to skip all of the geometries in the scene that any given ray doesn&rsquo;t come close to intersecting. This speedup is especially apparent in scenes with huge numbers of geometries, like in maxplanck.dae.</span><hr style="page-break-before:always;display:none;"></p><p class="c2"><span class="c6">Part 3</span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The two implementations of direct lighting estimation I implemented during this section were: Uniform Hemisphere Sampling and Importance Sampling. Let&rsquo;s first talk about uniform hemisphere sampling.</span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The number of samples we take per intersection is defined for us, as the number of lights in the scene x the number of samples taken per area light source. For each sample, we use a uniform hemispheric sampler to get a random direction vector (in object coordinates). Using this random direction, we create a ray whose origin is at hit_p, the point of the current intersection, and whose direction is the random direction transformed from object to world coordinates. We check for any intersection along this ray; if we find one, then we take the emission from the object we intersected, times the reflectance value of our current surface, times the normalizing term cos(theta) / pdf. Here, theta is the angle in object coordinates between the random direction we found, and the positive z-axis. The pdf value in this case is 1 / (2 * pi), since we are uniformly sampling over a hemispheric volume. Finally, we take the total radiance so far, and average it by the number of samples we took, to get a uniformly-sampled radiance for the current intersection.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 263.43px;"><img alt="" src="images/image9.png" style="width: 624.00px; height: 263.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;For importance sampling, instead of randomly sampling from a given intersection point, we sample a certain number of times for every light in the scene. I began by iterating over all of the scene&rsquo;s lights: for each area light, I sampled it ns_area_light times, while for point lights, I only performed the sampling process once. For each sample, I first sampled the radiance from the light to our point of intersection, hit_p. This gave me a vector in world coordinates, which gave me a direction vector from hit_p to the light. I used this direction vector to create a ray whose origin was hit_p; if there were any intersections along this ray between the current intersection point and the light, then that would mean the current intersection point is &ldquo;in shadow,&rdquo; and no light is received. However, if there was no intersection, I took the radiance from that light source, times the BSDF factor calculated from the w_out and w_in direction vectors, times the cos(theta) / pdf constant, and added it to the total radiance gathered from this light. Here, the value of pdf is weighted based on importance: based on the significance, or contribution of a particular light to this intersection point, the radiance gathered is scaled accordingly by this term. Finally, I took the total radiance found and averaged it by the number of samples, adding this average to the overall radiance total. I then repeated this process for each light in the scene, until I had a final radiance value for this point of intersection.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 260.31px;"><img alt="" src="images/image6.png" style="width: 624.00px; height: 260.31px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using importance sampling, the number of light rays used when rendering has a significant effect on the noise levels in soft shadows. </span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img alt="" src="images/image1.png" style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c2 c3"><span class="c1">In the picture above, you can see that for only 1 light ray, the soft shadows casted by the spheres onto the ground are very grainy at the edges, and there is very little gradient to them; the pixels within the shadow are for the most part either black or gray. For 4 light rays, there is a significant improvement&mdash;there is a more pronounced gradient, especially at the edges of the shadow, and we can better distinguish between the soft and hard parts of the shadow. With 16 light rays, the hard part of the shadow becomes more cohesive and the soft part becomes, well, softer. Minus the aliasing, the lighting with 16 rays starts to look more realistic, with a soft shadow that blends better into the ground than the preceding two pictures. Finally, with 64 light rays, the soft part of the shadow has become quite smooth and contrasts clearly with the hard part of the shadow. The soft part has a noticeable gradient from black to the ground&rsquo;s color, and blends very smoothly.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 450.50px; height: 382.84px;"><img alt="" src="images/image13.png" style="width: 450.50px; height: 382.84px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In comparison, using importance sampling when rendering yields a less noisy and more realistic picture than uniform hemisphere sampling. With uniform hemisphere sampling, from any given intersection point, we aren&rsquo;t guaranteed to encounter a light-emitting surface. This leads to a significant amount of noise in our rendered image; to counteract this, we have to increase the sampling size, but even then our final image will have a noticeable amount of noise present. With importance sampling, we iterate over all lights in our scene, which guarantees that for any given point visible to the camera, if there is light reaching that point, the rendered image will include it. This effectively eliminates noise, so long as we are taking enough radiance samples per light; in my experience, increasing the sample count for hemispheric sampling is far less effective than increasing the sample count for importance sampling by the same margin. Area lights require higher sample counts to give an accurate result at any given point of intersection, but in doing so we yield a far more accurate calculation than blindly guessing with hemispheric sampling.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 274.63px;"><img alt="" src="images/image3.png" style="width: 624.00px; height: 274.63px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><hr style="page-break-before:always;display:none;"><p class="c2 c4"><span class="c1"></span></p><p class="c2"><span class="c6">Part 4</span></p><p class="c2 c3"><span class="c1">Our baseline for the indirect lighting function is the one_bounce_radiance function from the previous section. At the given hit point, we randomly select an outgoing direction, and cast a ray along that direction to find an intersection. When we reach maximum ray depth, or if we don&rsquo;t intersect with any objects in our reflection ray, then we return this value instead. If we do intersect with an object, then we use the Russian Roulette termination scheme to determine whether or not to recursively calculate another light bounce. The resulting radiance value is scaled by the cos_theta and pdf terms like with direct illumination, and is also scaled down by the percentage chance of continuation via Russian Roulette. One note is that for our first bounce, we skip the Russian Roulette roll; thus, we are guaranteed to recurse at least once.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img alt="" src="images/image7.png" style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 274.63px;"><img alt="" src="images/image10.png" style="width: 624.00px; height: 274.63px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 396.99px;"><img alt="" src="images/image12.png" style="width: 624.00px; height: 396.99px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 456.47px;"><img alt="" src="images/image11.png" style="width: 624.00px; height: 456.47px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p><hr style="page-break-before:always;display:none;"><p class="c2 c4"><span class="c1"></span></p><p class="c2"><span class="c6">Part 5</span></p><p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I implemented adaptive sampling by first keeping track of two totals, s1 and s2. Value s1 keeps track of the sum of the illuminances of every sample taken so far, and value s2 keeps track of the sum of the illuminances of every sample taken so far, squared. After taking a batch of samplesPerBatch samples, we calculate the mean and standard deviation of the illuminance so far. We then use these values to calculate I, which represents a confidence interval around the mean: if the value I is less than or equal to the max tolerance, times the mean, then we can safely conclude that our pixel&rsquo;s radiance has converged. This means that we can terminate early, and potentially save time in areas that have less complex reflections.</span></p><p class="c0"><span style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 316.98px;"><img alt="" src="images/image2.png" style="width: 624.00px; height: 316.98px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);" title=""></span></p></body></html>
+<html>
+
+<head>
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+    <style type="text/css">
+        @import url('https://themes.googleusercontent.com/fonts/css?kit=ODelI1aHBYDBqgeIAH2zlJpCfVcp84aqLawScqpMaD_6HccaI_esRRCiUg1W99dz');
+
+        ol {
+            margin: 0;
+            padding: 0
+        }
+
+        table td,
+        table th {
+            padding: 0
+        }
+
+        .c5 {
+            color: #000000;
+            font-weight: 400;
+            text-decoration: none;
+            vertical-align: baseline;
+            font-size: 16pt;
+            font-family: "Source Sans Pro";
+            font-style: normal
+        }
+
+        .c6 {
+            color: #000000;
+            font-weight: 700;
+            text-decoration: none;
+            vertical-align: baseline;
+            font-size: 20pt;
+            font-family: "Source Sans Pro";
+            font-style: normal
+        }
+
+        .c7 {
+            color: #000000;
+            font-weight: 400;
+            text-decoration: none;
+            vertical-align: baseline;
+            font-size: 36pt;
+            font-family: "Source Sans Pro";
+            font-style: normal
+        }
+
+        .c1 {
+            color: #000000;
+            font-weight: 400;
+            text-decoration: none;
+            vertical-align: baseline;
+            line-height: 1.75;
+            font-size: 14pt;
+            font-family: "Source Sans Pro";
+            font-style: normal
+        }
+
+        .c0 {
+            padding-top: 10pt;
+            padding-bottom: 10pt;
+            line-height: 1.5;
+            orphans: 2;
+            widows: 2;
+            text-align: center
+        }
+
+        .c2 {
+            padding-top: 0pt;
+            padding-bottom: 0pt;
+            line-height: 1.75;
+            font-size: 14pt;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        .c8 {
+            background-color: #ffffff;
+            max-width: 640px;
+            margin: auto;
+            padding: 72pt 72pt 72pt 72pt
+        }
+
+        .c3 {
+            text-indent: 36pt
+        }
+
+        .c4 {
+            height: 12pt
+        }
+
+        .title {
+            padding-top: 0pt;
+            color: #000000;
+            font-weight: 700;
+            font-size: 26pt;
+            padding-bottom: 3pt;
+            font-family: "Source Sans Pro";
+            line-height: 1.5;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: center
+        }
+
+        .subtitle {
+            padding-top: 0pt;
+            color: #666666;
+            font-size: 15pt;
+            padding-bottom: 16pt;
+            font-family: "Arial";
+            line-height: 1.5;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        li {
+            color: #000000;
+            font-size: 12pt;
+            font-family: "Source Sans Pro"
+        }
+
+        p {
+            margin: 0;
+            color: #000000;
+            font-size: 12pt;
+            font-family: "Source Sans Pro"
+        }
+
+        h1 {
+            padding-top: 0pt;
+            color: #000000;
+            font-weight: 700;
+            font-size: 18pt;
+            padding-bottom: 0pt;
+            font-family: "Source Sans Pro";
+            line-height: 1.5;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h2 {
+            padding-top: 18pt;
+            color: #000000;
+            font-size: 16pt;
+            padding-bottom: 6pt;
+            font-family: "Source Sans Pro";
+            line-height: 1.5;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h3 {
+            padding-top: 16pt;
+            color: #434343;
+            font-size: 14pt;
+            padding-bottom: 4pt;
+            font-family: "Source Sans Pro";
+            line-height: 1.5;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h4 {
+            padding-top: 14pt;
+            color: #666666;
+            font-size: 12pt;
+            padding-bottom: 4pt;
+            font-family: "Source Sans Pro";
+            line-height: 1.5;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h5 {
+            padding-top: 12pt;
+            color: #666666;
+            font-size: 11pt;
+            padding-bottom: 4pt;
+            font-family: "Source Sans Pro";
+            line-height: 1.5;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h6 {
+            padding-top: 12pt;
+            color: #666666;
+            font-size: 11pt;
+            padding-bottom: 4pt;
+            font-family: "Source Sans Pro";
+            line-height: 1.5;
+            page-break-after: avoid;
+            font-style: italic;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        .content {
+            max-width: 960px;
+            margin: auto;
+        }
+    </style>
+</head>
+
+<body class="c8">
+    <p class="c0"><span class="c7">CS 184 Assignment 3: Pathtracer</span></p>
+    <p class="c0"><span class="c5">Brandon Shin</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 416.00px;"><img
+                alt="" src="images/image5.png"
+                style="width: 624.00px; height: 468.00px; margin-left: 0.00px; margin-top: -26.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c0 c4"><span class="c5"></span></p>
+    <p class="c0 c4"><span class="c5"></span></p>
+    <p class="c0 c4"><span class="c5"></span></p>
+    <hr style="page-break-before:always;display:none;">
+    <p class="c2 c4"><span class="c6"></span></p>
+    <p class="c2"><span class="c6">Part 1</span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To perform ray tracing, we first need
+            to generate a ray which starts at the camera&rsquo;s location, and is casted out into the scene. I began by
+            calculating the bounding plane representing the camera&rsquo;s field of view in camera space. I then used
+            the normalized input x and y coordinates to linearly interpolate across the plane in camera space, to find
+            the corresponding coordinates. Finally, I plugged these new coordinates into a 3D vector (with the z
+            coordinate set at -1), and rotated/normalized it to get a direction vector in world space. The resulting ray
+            starts at the camera&rsquo;s position pos, and travels along the calculated direction vector. Building off
+            of this, we can perform multiple ray casts per pixel and average their values, similar to the idea of
+            supersampling. I used the provided grid sampling object to obtain a certain number of rays, all of which
+            &ldquo;pass through&rdquo; the pixel at the given coordinates, and average all of their radiances together
+            to get a more accurate result.</span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When a ray is casted into the scene,
+            it travels within the minimum and maximum &ldquo;clipping distances&rdquo; of the camera, until it
+            intersects with an object. Then, shading calculations are performed at that intersection point, and
+            depending on the properties of the surface and the shape of the object we collided with, more ray casts and
+            lighting calculations may also occur. When all is said and done, we will have a composite radiance value
+            that represents what is &ldquo;seen&rdquo; by the camera at that particular coordinate in image
+            space.</span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To handle triangle intersections, I
+            implemented the Moller-Trumbore algorithm from lecture. Using the algorithm, I was able to get the
+            barycentric coordinates of the possible intersection point of the given ray and triangle, and determine
+            whether or not there was a valid intersection. Then, I calculated the t value representing the point of
+            intersection on the ray, and checked whether or not it fell within the acceptable min_t and max_t range of
+            the provided ray. The importance of these values has to do with the clipping distance of the camera, and
+            other intersections; t values that are less than min_t mean that the intersection occurs
+            &ldquo;behind&rdquo; the camera&rsquo;s field of view, and t values greater than max_t are either outside
+            the maximum viewing distance of the camera, or they are intersections that occur behind other
+            already-calculated intersections. When we do find a valid intersection, the value of max_t is updated to the
+            next closest intersection, to aid in future intersection calculations.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img
+                alt="" src="images/image8.png"
+                style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <hr style="page-break-before:always;display:none;">
+    <p class="c2 c4"><span class="c1"></span></p>
+    <p class="c2"><span class="c6">Part 2</span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To construct the BVH, I began by
+            constructing a bounding box containing all of the input primitives. Using this bounding box, I created a
+            BVHNode for our BVH tree. If the number of primitives in this node was less than the maximum leaf size, then
+            this function call would result in a leaf node. Otherwise, I decided to split the primitives within this
+            bounding box by the longest axis, determined by their centroids. The splitting point was the average value
+            of all of the objects&rsquo; centroids, which was calculated during the initial bounding box creation step.
+            I used the std::partition function to separate the elements into two groups, then recursively called the
+            construct_bvh function on each group to create two children nodes.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img
+                alt="" src="images/image4.png"
+                style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c2"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Before beginning part 2 of this project, I tried
+            to render the cow.dae and </span><span>maxplanck.dae</span><span>&nbsp;files using the naive bounding box
+            implementation. Even with multiple threads, checking every single geometry in the scene led to significantly
+            long rendering times, so long that I wasn&rsquo;t patient enough to let any of them finish. Instead, I
+            decided to compare rendering times between the naive solution with no BVH tree (and subsequently no
+            slabbed-bounding box intersection), and my optimized solution after completing part 2. Rendering cow.dae
+            with the naive solution on 8 threads took ~7 seconds to complete, while maxplanck.dae took a whopping ~124
+            seconds. With my optimized solution, cow.dae finished rendering in only ~0.04 seconds, and maxplanck.dae
+            took about the same time, which was ~0.05 seconds to complete. This shows an insane improvement in rendering
+            times between the naive and optimized solutions, since with an optimally-split BVH tree, we are able to skip
+            all of the geometries in the scene that any given ray doesn&rsquo;t come close to intersecting. This speedup
+            is especially apparent in scenes with huge numbers of geometries, like in maxplanck.dae.</span>
+        <hr style="page-break-before:always;display:none;">
+    </p>
+    <p class="c2"><span class="c6">Part 3</span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The two implementations of direct
+            lighting estimation I implemented during this section were: Uniform Hemisphere Sampling and Importance
+            Sampling. Let&rsquo;s first talk about uniform hemisphere sampling.</span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The number of samples we take per
+            intersection is defined for us, as the number of lights in the scene x the number of samples taken per area
+            light source. For each sample, we use a uniform hemispheric sampler to get a random direction vector (in
+            object coordinates). Using this random direction, we create a ray whose origin is at hit_p, the point of the
+            current intersection, and whose direction is the random direction transformed from object to world
+            coordinates. We check for any intersection along this ray; if we find one, then we take the emission from
+            the object we intersected, times the reflectance value of our current surface, times the normalizing term
+            cos(theta) / pdf. Here, theta is the angle in object coordinates between the random direction we found, and
+            the positive z-axis. The pdf value in this case is 1 / (2 * pi), since we are uniformly sampling over a
+            hemispheric volume. Finally, we take the total radiance so far, and average it by the number of samples we
+            took, to get a uniformly-sampled radiance for the current intersection.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 263.43px;"><img
+                alt="" src="images/image9.png"
+                style="width: 624.00px; height: 263.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;For importance sampling, instead of
+            randomly sampling from a given intersection point, we sample a certain number of times for every light in
+            the scene. I began by iterating over all of the scene&rsquo;s lights: for each area light, I sampled it
+            ns_area_light times, while for point lights, I only performed the sampling process once. For each sample, I
+            first sampled the radiance from the light to our point of intersection, hit_p. This gave me a vector in
+            world coordinates, which gave me a direction vector from hit_p to the light. I used this direction vector to
+            create a ray whose origin was hit_p; if there were any intersections along this ray between the current
+            intersection point and the light, then that would mean the current intersection point is &ldquo;in
+            shadow,&rdquo; and no light is received. However, if there was no intersection, I took the radiance from
+            that light source, times the BSDF factor calculated from the w_out and w_in direction vectors, times the
+            cos(theta) / pdf constant, and added it to the total radiance gathered from this light. Here, the value of
+            pdf is weighted based on importance: based on the significance, or contribution of a particular light to
+            this intersection point, the radiance gathered is scaled accordingly by this term. Finally, I took the total
+            radiance found and averaged it by the number of samples, adding this average to the overall radiance total.
+            I then repeated this process for each light in the scene, until I had a final radiance value for this point
+            of intersection.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 260.31px;"><img
+                alt="" src="images/image6.png"
+                style="width: 624.00px; height: 260.31px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using importance sampling, the
+            number of light rays used when rendering has a significant effect on the noise levels in soft shadows.
+        </span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img
+                alt="" src="images/image1.png"
+                style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c2 c3"><span class="c1">In the picture above, you can see that for only 1 light ray, the soft shadows
+            casted by the spheres onto the ground are very grainy at the edges, and there is very little gradient to
+            them; the pixels within the shadow are for the most part either black or gray. For 4 light rays, there is a
+            significant improvement&mdash;there is a more pronounced gradient, especially at the edges of the shadow,
+            and we can better distinguish between the soft and hard parts of the shadow. With 16 light rays, the hard
+            part of the shadow becomes more cohesive and the soft part becomes, well, softer. Minus the aliasing, the
+            lighting with 16 rays starts to look more realistic, with a soft shadow that blends better into the ground
+            than the preceding two pictures. Finally, with 64 light rays, the soft part of the shadow has become quite
+            smooth and contrasts clearly with the hard part of the shadow. The soft part has a noticeable gradient from
+            black to the ground&rsquo;s color, and blends very smoothly.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 450.50px; height: 382.84px;"><img
+                alt="" src="images/importance_comparison.gif"
+                style="width: 450.50px; height: 382.84px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In comparison, using importance
+            sampling when rendering yields a less noisy and more realistic picture than uniform hemisphere sampling.
+            With uniform hemisphere sampling, from any given intersection point, we aren&rsquo;t guaranteed to encounter
+            a light-emitting surface. This leads to a significant amount of noise in our rendered image; to counteract
+            this, we have to increase the sampling size, but even then our final image will have a noticeable amount of
+            noise present. With importance sampling, we iterate over all lights in our scene, which guarantees that for
+            any given point visible to the camera, if there is light reaching that point, the rendered image will
+            include it. This effectively eliminates noise, so long as we are taking enough radiance samples per light;
+            in my experience, increasing the sample count for hemispheric sampling is far less effective than increasing
+            the sample count for importance sampling by the same margin. Area lights require higher sample counts to
+            give an accurate result at any given point of intersection, but in doing so we yield a far more accurate
+            calculation than blindly guessing with hemispheric sampling.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 274.63px;"><img
+                alt="" src="images/image3.png"
+                style="width: 624.00px; height: 274.63px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <hr style="page-break-before:always;display:none;">
+    <p class="c2 c4"><span class="c1"></span></p>
+    <p class="c2"><span class="c6">Part 4</span></p>
+    <p class="c2 c3"><span class="c1">Our baseline for the indirect lighting function is the one_bounce_radiance
+            function from the previous section. At the given hit point, we randomly select an outgoing direction, and
+            cast a ray along that direction to find an intersection. When we reach maximum ray depth, or if we
+            don&rsquo;t intersect with any objects in our reflection ray, then we return this value instead. If we do
+            intersect with an object, then we use the Russian Roulette termination scheme to determine whether or not to
+            recursively calculate another light bounce. The resulting radiance value is scaled by the cos_theta and pdf
+            terms like with direct illumination, and is also scaled down by the percentage chance of continuation via
+            Russian Roulette. One note is that for our first bounce, we skip the Russian Roulette roll; thus, we are
+            guaranteed to recurse at least once.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 504.43px;"><img
+                alt="" src="images/image7.png"
+                style="width: 624.00px; height: 504.43px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 274.63px;"><img
+                alt="" src="images/image10.png"
+                style="width: 624.00px; height: 274.63px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 396.99px;"><img
+                alt="" src="images/image12.png"
+                style="width: 624.00px; height: 396.99px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 456.47px;"><img
+                alt="" src="images/image11.png"
+                style="width: 624.00px; height: 456.47px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+    <p class="c2 c3"><span class="c1">Here are the comparison pictures from above, in GIF form:</span></p>
+    <p class="c0"><span
+        style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 456.47px;"><img
+            alt="" src="images/bunny_sampling.gif"
+            style="width: 624.00px; height: 456.47px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+            title=""></span></p>
+    <p class="c0"><span
+        style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 456.47px;"><img
+            alt="" src="images/dragon_sampling.gif"
+            style="width: 624.00px; height: 456.47px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+            title=""></span></p>
+    <hr style="page-break-before:always;display:none;">
+    <p class="c2 c4"><span class="c1"></span></p>
+    <p class="c2"><span class="c6">Part 5</span></p>
+    <p class="c2"><span class="c1">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I implemented adaptive sampling by
+            first keeping track of two totals, s1 and s2. Value s1 keeps track of the sum of the illuminances of every
+            sample taken so far, and value s2 keeps track of the sum of the illuminances of every sample taken so far,
+            squared. After taking a batch of samplesPerBatch samples, we calculate the mean and standard deviation of
+            the illuminance so far. We then use these values to calculate I, which represents a confidence interval
+            around the mean: if the value I is less than or equal to the max tolerance, times the mean, then we can
+            safely conclude that our pixel&rsquo;s radiance has converged. This means that we can terminate early, and
+            potentially save time in areas that have less complex reflections.</span></p>
+    <p class="c0"><span
+            style="overflow: hidden; display: inline-block; margin: 0.00px 0.00px; border: 0.00px solid #000000; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px); width: 624.00px; height: 316.98px;"><img
+                alt="" src="images/image2.png"
+                style="width: 624.00px; height: 316.98px; margin-left: 0.00px; margin-top: 0.00px; transform: rotate(0.00rad) translateZ(0px); -webkit-transform: rotate(0.00rad) translateZ(0px);"
+                title=""></span></p>
+</body>
+
+</html>
